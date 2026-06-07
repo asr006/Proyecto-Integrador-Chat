@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Prueba de Chat Go</title>
+    <style>
+        body { font-family: Arial, sans-serif; background-color: #f4f4f4; padding: 20px; }
+        #chat { background: white; width: 400px; height: 300px; border: 1px solid #ccc; overflow-y: scroll; padding: 10px; margin-bottom: 10px; }
+        .mensaje { padding: 5px; border-bottom: 1px solid #eee; }
+        .emisor { font-weight: bold; color: #2c3e50; }
+    </style>
+</head>
+<body>
+
+    <h2>Sala de Chat General</h2>
+    
+    <div id="chat"></div>
+
+    <input type="text" id="nombre" placeholder="Tu nombre" value="Usuario de prueba">
+    <input type="text" id="texto" placeholder="Escribe un mensaje..." style="width: 200px;">
+    <button onclick="enviarMensaje()">Enviar</button>
+
+    <script>
+        // 1. Nos conectamos al "túnel" de tu servidor Go
+        const socket = new WebSocket("ws://localhost:8080/ws");
+        const cajaChat = document.getElementById("chat");
+        const inputTexto = document.getElementById("texto");
+        const inputNombre = document.getElementById("nombre");
+
+        // 2. ¿Qué pasa cuando el servidor nos empuja un mensaje?
+        socket.onmessage = function(evento) {
+            // Convertimos el texto que llegó en un objeto manejable
+            const mensajeRecibido = JSON.parse(evento.data);
+            
+            // Lo pintamos en la pantalla
+            const div = document.createElement("div");
+            div.className = "mensaje";
+            div.innerHTML = `<span class="emisor">${mensajeRecibido.emisor}:</span> ${mensajeRecibido.contenido}`;
+            cajaChat.appendChild(div);
+            
+            // Hacemos scroll automático hacia abajo
+            cajaChat.scrollTop = cajaChat.scrollHeight;
+        };
+
+        // 3. ¿Qué pasa cuando le damos al botón "Enviar"?
+        function enviarMensaje() {
+            if (inputTexto.value.trim() === "") return;
+
+            // Armamos el paquete exactamente con la estructura de tu struct "Mensaje" en Go
+            const nuevoMensaje = {
+                id: Math.floor(Math.random() * 1000), // ID simulado
+                emisor: inputNombre.value,
+                receptor: "Todos",
+                contenido: inputTexto.value,
+                fecha: new Date().toISOString()
+            };
+
+            // Convertimos el paquete a JSON y lo disparamos por el WebSocket
+            socket.send(JSON.stringify(nuevoMensaje));
+            
+            // Limpiamos la caja de texto
+            inputTexto.value = "";
+        }
+
+        // Para que también se envíe al presionar "Enter"
+        inputTexto.addEventListener("keypress", function(evento) {
+            if (evento.key === "Enter") enviarMensaje();
+        });
+    </script>
+</body>
+</html>
